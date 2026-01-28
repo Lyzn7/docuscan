@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Button, StyleSheet, Image, ActivityIndicator, Alert, Platform, ToastAndroid, TouchableOpacity, Text } from 'react-native';
+import { View, Button, StyleSheet, Image, ActivityIndicator, Alert, Platform, ToastAndroid } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -13,7 +13,7 @@ import * as Print from 'expo-print';
 type Props = NativeStackScreenProps<RootStackParamList, 'Edit'>;
 
 export const EditScreen = ({ navigation, route }: Props) => {
-    const { imageUri } = route.params;
+    const { imageUri, documentId } = route.params;
     const [currentUri, setCurrentUri] = useState(imageUri);
     const [loading, setLoading] = useState(false);
     const [isCropping, setIsCropping] = useState(false);
@@ -118,29 +118,46 @@ export const EditScreen = ({ navigation, route }: Props) => {
             const newPath = targetRoot + fileName;
             await FileSystem.copyAsync({ from: currentUri, to: newPath });
 
-            const docId = Date.now().toString();
             const db = getDatabase();
-            await db.runAsync(
-                'INSERT INTO documents (id, name, createdAt, updatedAt, thumbnailUri, pageCount) VALUES (?, ?, ?, ?, ?, ?)',
-                [docId, `Scan ${new Date().toLocaleDateString()}`, Date.now(), Date.now(), newPath, 1]
-            );
+            let targetDocId = documentId;
+            if (documentId) {
+                // append page to existing doc
+                const maxOrderRow = await db.getFirstAsync<{ maxOrder: number }>(
+                    'SELECT MAX("order") as maxOrder FROM pages WHERE documentId = ?',
+                    [documentId]
+                );
+                const nextOrder = (maxOrderRow?.maxOrder ?? -1) + 1;
+                await db.runAsync(
+                    'INSERT INTO pages (id, documentId, imageUri, "order", width, height) VALUES (?, ?, ?, ?, ?, ?)',
+                    [Date.now().toString(), documentId, newPath, nextOrder, imageSize.width, imageSize.height]
+                );
+                await db.runAsync('UPDATE documents SET pageCount = pageCount + 1, updatedAt = ? WHERE id = ?', [
+                    Date.now(),
+                    documentId,
+                ]);
+                targetDocId = documentId;
+            } else {
+                targetDocId = Date.now().toString();
+                await db.runAsync(
+                    'INSERT INTO documents (id, name, createdAt, updatedAt, thumbnailUri, pageCount) VALUES (?, ?, ?, ?, ?, ?)',
+                    [targetDocId, `Scan ${new Date().toLocaleDateString()}`, Date.now(), Date.now(), newPath, 1]
+                );
+                await db.runAsync(
+                    'INSERT INTO pages (id, documentId, imageUri, "order", width, height) VALUES (?, ?, ?, ?, ?, ?)',
+                    [Date.now().toString(), targetDocId, newPath, 0, imageSize.width, imageSize.height]
+                );
+                addDocument({
+                    id: targetDocId,
+                    name: `Scan ${new Date().toLocaleDateString()}`,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    thumbnailUri: newPath,
+                    pageCount: 1,
+                });
+            }
 
-            await db.runAsync(
-                'INSERT INTO pages (id, documentId, imageUri, "order", width, height) VALUES (?, ?, ?, ?, ?, ?)',
-                [Date.now().toString(), docId, newPath, 0, imageSize.width, imageSize.height]
-            );
-
-            addDocument({
-                id: docId,
-                name: `Scan ${new Date().toLocaleDateString()}`,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                thumbnailUri: newPath,
-                pageCount: 1,
-            });
-
-            toast('Dokumen disimpan di penyimpanan aplikasi');
-            navigation.navigate('Preview', { documentId: docId });
+            toast('Halaman disimpan');
+            navigation.navigate('Preview', { documentId: targetDocId });
         } catch (error) {
             console.error(error);
             Alert.alert('Error', error instanceof Error ? error.message : 'Gagal menyimpan dokumen');
@@ -155,9 +172,6 @@ export const EditScreen = ({ navigation, route }: Props) => {
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
             {isCropping ? (
                 <CropView
                     imageUri={currentUri}
@@ -200,19 +214,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    backButton: {
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        zIndex: 15,
-        padding: 8,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderRadius: 6,
-    },
-    backText: {
-        color: '#fff',
-        fontWeight: '700',
     },
     image: {
         width: '100%',

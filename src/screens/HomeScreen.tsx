@@ -5,6 +5,7 @@ import { RootStackParamList, Document } from '../types';
 import { useStore } from '../store/useStore';
 import { getDatabase } from '../services/DatabaseService';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLayoutEffect } from 'react';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -23,6 +24,16 @@ export const HomeScreen = ({ navigation }: Props) => {
             console.error('Failed to load documents', error);
         }
     };
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Donation')}>
+                    <Text style={styles.headerButtonText}>❤️ Dukungan</Text>
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation]);
 
     useFocusEffect(
         useCallback(() => {
@@ -255,6 +266,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',
         gap: 10,
+    },
+    headerButton: {
+        marginRight: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        backgroundColor: '#ff7043',
+        borderRadius: 8,
+    },
+    headerButtonText: {
+        color: '#fff',
+        fontWeight: '700',
     },
     emptyContainer: {
         padding: 40,

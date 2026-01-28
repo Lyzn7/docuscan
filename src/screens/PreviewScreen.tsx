@@ -6,6 +6,7 @@ import { getDatabase } from '../services/DatabaseService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import DocumentScanner from 'react-native-document-scanner-plugin';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Preview'>;
 
@@ -45,15 +46,28 @@ export const PreviewScreen = ({ navigation, route }: Props) => {
 
     const exportPdf = async () => {
         try {
+            const pagesBase64 = await Promise.all(
+                pages.map(async (page) => {
+                    try {
+                        const b64 = await FileSystem.readAsStringAsync(page.imageUri, { encoding: FileSystem.EncodingType.Base64 });
+                        return `data:image/jpeg;base64,${b64}`;
+                    } catch {
+                        return page.imageUri; // fallback
+                    }
+                })
+            );
+
             const htmlContent = `
         <html>
-          <body style="margin: 0; padding: 0;">
-            ${pages
-                    .map(
-                        (page) =>
-                            `<img src="${page.imageUri}" style="width: 100%; height: auto; page-break-after: always;" />`
-                    )
-                    .join('')}
+          <head>
+            <style>
+              @page { margin: 0; }
+              body { margin: 0; padding: 0; }
+              img { width: 100%; height: auto; page-break-after: always; }
+            </style>
+          </head>
+          <body>
+            ${pagesBase64.map((src) => `<img src="${src}" />`).join('')}
           </body>
         </html>
       `;
@@ -74,11 +88,20 @@ export const PreviewScreen = ({ navigation, route }: Props) => {
         }
     };
 
+    const addPage = async () => {
+        try {
+            const { scannedImages, status } = await DocumentScanner.scanDocument({
+                maxNumDocuments: 1,
+            });
+            if (status === 'cancel' || !scannedImages || scannedImages.length === 0) return;
+            navigation.navigate('Edit', { imageUri: scannedImages[0], documentId });
+        } catch (error) {
+            Alert.alert('Error', 'Failed to add page');
+        }
+    };
+
     return (
         <View style={styles.container}>
-            <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.backText}>Back</Text>
-            </Pressable>
             <FlatList
                 data={pages}
                 keyExtractor={(item) => item.id}
@@ -88,6 +111,7 @@ export const PreviewScreen = ({ navigation, route }: Props) => {
                 contentContainerStyle={styles.listContent}
             />
             <View style={styles.footer}>
+                <Button title="Add Page" onPress={addPage} />
                 <Button title="Export PDF" onPress={() => setExportVisible(true)} />
                 <Button title="Done" onPress={() => navigation.popToTop()} />
             </View>
@@ -125,19 +149,6 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 10,
-    },
-    backButton: {
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        zIndex: 10,
-        padding: 8,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderRadius: 6,
-    },
-    backText: {
-        color: '#fff',
-        fontWeight: '700',
     },
     pageImage: {
         width: '100%',

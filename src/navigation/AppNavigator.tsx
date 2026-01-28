@@ -7,6 +7,7 @@ import { ScanScreen } from '../screens/ScanScreen';
 import { EditScreen } from '../screens/EditScreen';
 import { PreviewScreen } from '../screens/PreviewScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { DonationScreen } from '../screens/DonationScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -19,6 +20,7 @@ export const AppNavigator = () => {
                 <Stack.Screen name="Edit" component={EditScreen} />
                 <Stack.Screen name="Preview" component={PreviewScreen} />
                 <Stack.Screen name="Settings" component={SettingsScreen} />
+                <Stack.Screen name="Donation" component={DonationScreen} options={{ title: 'Dukung Developer' }} />
             </Stack.Navigator>
         </NavigationContainer>
     );

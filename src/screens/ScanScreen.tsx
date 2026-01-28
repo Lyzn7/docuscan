@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import DocumentScanner from 'react-native-document-scanner-plugin';
@@ -10,22 +10,28 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Scan'>;
 
 export const ScanScreen = ({ navigation }: Props) => {
     const [scannedImage, setScannedImage] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
     const scanDocument = async () => {
-        // DocumentScanner requires a development build or standalone build.
-        // It will not work in Expo Go.
+        setLoading(true);
         try {
-            const { scannedImages } = await DocumentScanner.scanDocument({
+            const { scannedImages, status } = await DocumentScanner.scanDocument({
                 maxNumDocuments: 1,
             });
 
-            if (scannedImages && scannedImages.length > 0) {
-                setScannedImage(scannedImages[0]);
-                navigation.navigate('Edit', { imageUri: scannedImages[0] });
+            if (status === 'cancel' || !scannedImages || scannedImages.length === 0) {
+                navigation.goBack();
+                return;
             }
+
+            setScannedImage(scannedImages[0]);
+            navigation.replace('Edit', { imageUri: scannedImages[0] });
         } catch (error) {
             console.error('Error scanning document:', error);
             Alert.alert('Error', 'Failed to scan document. Make sure you are using a Development Build.');
+            navigation.goBack();
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -45,32 +51,26 @@ export const ScanScreen = ({ navigation }: Props) => {
         }
     };
 
+    useEffect(() => {
+        scanDocument();
+    }, []);
+
     return (
         <View style={styles.container}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                <Ionicons name="arrow-back" size={22} color="#007AFF" />
-                <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>Scan Document</Text>
-            <Text style={styles.subtitle}>
-                Use the camera to scan a document with auto-edge detection.
-            </Text>
-
+            <Ionicons name="camera" size={64} color="#007AFF" />
+            <Text style={styles.title}>Membuka kamera...</Text>
+            <Text style={styles.subtitle}>Auto-start scan. Tekan Batal untuk kembali.</Text>
+            {loading && <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 16 }} />}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.button} onPress={scanDocument}>
-                    <Ionicons name="camera" size={30} color="#fff" />
-                    <Text style={styles.buttonText}>Scan with Camera</Text>
+                <TouchableOpacity style={[styles.button, styles.cancelBtn]} onPress={() => navigation.goBack()}>
+                    <Ionicons name="close" size={26} color="#fff" />
+                    <Text style={styles.buttonText}>Batal</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.button} onPress={pickImage}>
-                    <Ionicons name="images" size={30} color="#fff" />
-                    <Text style={styles.buttonText}>Import from Gallery</Text>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={pickImage}>
+                    <Ionicons name="images" size={24} color="#007AFF" />
+                    <Text style={styles.secondaryText}>Pilih dari Galeri</Text>
                 </TouchableOpacity>
             </View>
-
-            <Text style={styles.note}>
-                Note: Camera scanning requires a Development Build.
-            </Text>
         </View>
     );
 };
@@ -82,19 +82,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#f5f5f5',
         padding: 20,
-    },
-    backButton: {
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 8,
-    },
-    backText: {
-        color: '#007AFF',
-        marginLeft: 6,
-        fontWeight: '600',
     },
     title: {
         fontSize: 24,
@@ -110,7 +97,8 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         width: '100%',
-        gap: 20,
+        marginTop: 24,
+        gap: 12,
     },
     button: {
         flexDirection: 'row',
@@ -120,16 +108,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    cancelBtn: {
+        backgroundColor: '#ff4d4d',
+    },
     buttonText: {
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',
         marginLeft: 10,
     },
-    note: {
-        marginTop: 40,
-        fontSize: 12,
-        color: '#999',
-        textAlign: 'center',
+    secondaryBtn: {
+        flexDirection: 'row',
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#007AFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+    },
+    secondaryText: {
+        color: '#007AFF',
+        fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 8,
     },
 });

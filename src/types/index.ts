@@ -22,4 +22,5 @@ export type RootStackParamList = {
   Edit: { imageUri: string; documentId?: string; pageId?: string };
   Preview: { documentId: string };
   Settings: undefined;
+  Donation: undefined;
 };
