@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/loading2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -36,10 +36,22 @@
           "android": {
             "extraMavenRepos": [
               "https://www.jitpack.io"
-            ]
+            ],
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResources": true,
+            "packagingOptions": {
+              "pickFirst": [
+                "**/libc++_shared.so"
+              ]
+            }
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0443814f-3b64-426e-9f8b-2ec928730e48"
+      }
+    }
   }
 }

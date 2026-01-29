@@ -1,0 +1,45 @@
+diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
+index 4600a8d..8ef2a40 100644
+--- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
++++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
+@@ -336,8 +336,9 @@ class RNCWebViewManagerImpl {
+           if (args == null) {
+             throw RuntimeException("Arguments for loading an url are null!")
+           }
++          val url = args.getString(0) ?: ""
+           webView.progressChangedFilter.setWaitingForCommandLoadUrl(false)
+-          webView.loadUrl(args.getString(0))
++          webView.loadUrl(url)
+         }
+         "requestFocus" -> webView.requestFocus()
+         "clearFormData" -> webView.clearFormData()
+@@ -378,7 +379,7 @@ class RNCWebViewManagerImpl {
+         if (source != null) {
+             if (source.hasKey("html")) {
+                 val html = source.getString("html")
+-                val baseUrl = if (source.hasKey("baseUrl")) source.getString("baseUrl") else ""
++                val baseUrl: String = if (source.hasKey("baseUrl")) source.getString("baseUrl") ?: "" else ""
+                 view.loadDataWithBaseURL(
+                     baseUrl,
+                     html!!,
+@@ -413,7 +414,7 @@ class RNCWebViewManagerImpl {
+                         return
+                     }
+                 }
+-                val headerMap = HashMap<String, String?>()
++                val headerMap = HashMap<String, String>()
+                 if (source.hasKey("headers")) {
+                     if (newArch) {
+                       val headerArray = source.getArray("headers");
+@@ -435,7 +436,10 @@ class RNCWebViewManagerImpl {
+                         if ("user-agent" == key.lowercase(Locale.ENGLISH)) {
+                           view.settings.userAgentString = headers.getString(key)
+                         } else {
+-                          headerMap[key] = headers.getString(key)
++                          val headerValue = headers.getString(key)
++                          if (headerValue != null) {
++                            headerMap[key] = headerValue
++                          }
+                         }
+                       }
+                     }
